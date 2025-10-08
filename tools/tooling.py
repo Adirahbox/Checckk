@@ -1013,9 +1013,6 @@ async def fake_command(event):
             "Please input the correct format:\n"
             "`/fake {country_code or country_name}`\n\n"
             "✨ **Example:** `/fake us`\n"
-            "✨ **Example:** `/fake United States`\n"
-            "✨ **Example:** `/fake gb(united kingdom)`\n"
-            "✨ **Example:** `/fake uk`\n"
         )
         return
 
@@ -1112,7 +1109,6 @@ async def gen_command(event):
             "✨ **Example:** `/gen 123456|12|2025|123 10`\n"
             "✨ **Example:** `/gen 123456 5`\n\n"
             "✨ **Example with BIN:** `/gen 123456 5`\n"
-            "✨ **Example with CC number:** `/gen 4115081234567890 5`\n"
         )
         return
 
@@ -1534,9 +1530,9 @@ async def tools_commands(event):
 
     user_plan = get_user_plan(event.sender_id)
     buttons = [
-        [Button.inline("/status 📋", b"status_command"), Button.inline("/redeem 🎁", b"redeem_command")],
-        [Button.inline("/bin 💳", b"bin_command"), Button.inline("/fake 🏠", b"fake_command")],
-        [Button.inline("/gen 💳", b"gen_command"), Button.inline("/gate 🌐", b"gate_command")],
+        [Button.inline("/𝒔𝒕𝒂𝒕𝒖𝒔 📋", b"status_command"), Button.inline("/𝒓𝒆𝒅𝒆𝒆𝒎 🎁", b"redeem_command")],
+        [Button.inline("/𝒃𝒊𝒏 💳", b"bin_command"), Button.inline("/𝒇𝒂𝒌𝒆 🏠", b"fake_command")],
+        [Button.inline("/𝒈𝒆𝒏 💳", b"gen_command"), Button.inline("/𝒈𝒂𝒕𝒆 🌐", b"gate_command")],
         [Button.inline("Exit ↩️", b"exit_command")]
     ]
 

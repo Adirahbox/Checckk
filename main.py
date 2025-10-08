@@ -37,7 +37,7 @@ from addups.notwork import is_command_disabled, disable_command, enable_command,
 # Telegram API credentials
 api_id = os.getenv('TELEGRAM_API_ID', '12313459')
 api_hash = os.getenv('TELEGRAM_API_HASH', 'd2f81736492abbfcc50e1fdceffdab96')
-bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '7350420971:AAEtiFIK1Tp30NSQf94Qq-42SC9EkQcyYUQ')
+bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '7517892696:AAFMwc4QSGEHzS4IlQvg1yeQJtU6dkRORHM')
 
 # Session management
 SESSIONS_FOLDER = "sessions"
@@ -456,7 +456,7 @@ async def tools_commands(event):
             [Button.inline("📊 /status", b"status_command"), Button.inline("🎁 /redeem", b"redeem_command")],
             [Button.inline("🎰 /bin", b"bin_command"), Button.inline("🏠 /fake", b"fake_command")],
             [Button.inline("📦 /gen", b"gen_command"), Button.inline("🔍 /gate", b"gate_command")],
-            [Button.inline("🔙 Back to Main Menu", b"enter_world")]
+            [Button.inline("🔙 Back to 𝑴𝒂𝒊𝒏 𝑴𝒆𝒏𝒖 ", b"enter_world")]
         ]
     )
 
@@ -859,7 +859,6 @@ async def au_help(event):
         "`/au <cc|mm|yy|cvv>`\n\n"
         "📋 **Examples:**\n"
         "`/au 1234567891238547|12|2025|123`\n\n"
-        "✅ Enjoy your Stripe checking!"
     )
 
 # Mass Stripe Auth Checker Command with strict limits
@@ -904,13 +903,10 @@ async def mau_help(event):
         "Use the following format to check up to 5 cards:\n\n"
         "`/mau`\n"
         "`cc|mm|yy|cvv`\n"
-        "`cc|mm|yy|cvv`\n"
         "...\n\n"
         "📋 **Example:**\n"
         "`/mau`\n"
         "`1234567891238547|12|2025|123`\n"
-        "`9876543210987654|06|2026|456`\n\n"
-        "⏳ There will be a 2-3 second delay between each check."
     )
 
 # Command to check Stripe charge
@@ -951,12 +947,10 @@ async def sc_help_command(event):
         return
 
     await event.respond(
-        "💰 **How to Check Stripe Charge**\n\n"
-        "Use the following format to charge $10:\n\n"
+        "💰 **How to Check Stripe Charge 10$**\n\n"
         "`/sc <cc|mm|yy|cvv>`\n\n"
         "📋 **Examples:**\n"
         "`/sc 1234567891238547|12|2025|123`\n\n"
-        "✅ Enjoy your Stripe checking!"
     )
 
 # Command to check $5 charge
@@ -1025,15 +1019,9 @@ async def msc_help(event):
         "📁 **How to use Mass Stripe Charge**\n\n"
         "Send a text file containing credit cards with the /msc command:\n\n"
         "**Format:** `cc|mm|yy|cvv` (one per line)\n\n"
-        "📊 **Limits:**\n"
-        "🆓 FREE: 25 cards max\n"
-        "💎 PLUS: 50 cards max\n"
-        "🔒 ADMIN/GOD: 100 cards max\n\n"
         "📋 **Example file content:**\n"
-        "4111111111111111|12|2025|123\n"
-        "4111111111111112|12|2025|123\n"
         "4111111111111113|12|2025|123\n\n"
-        "ℹ️ The bot will process all cards and provide detailed results."
+ 
     )
 
 # Command to generate CCs
@@ -1068,10 +1056,8 @@ async def gen_help(event):
 
     await event.respond(
         "📦 **How to Generate Credit Cards**\n\n"
-        "Use the following format:\n\n"
         "`/gen <BIN> <amount>`\n\n"
         "📋 **Examples:**\n"
-        "`/gen 411111 10` - Generate 10 cards with BIN 411111\n"
         "`/gen 543210 5` - Generate 5 cards with BIN 543210\n\n"
         "✅ The bot will generate valid credit card numbers."
     )
@@ -1169,10 +1155,10 @@ async def cmds(event):
         return
 
     await event.respond(
-        "🧰 Version: 1.0.0 \n"
-        "📋 Available commands:\n\n"
-        "🔍 Click below to explore the commands:",
-        buttons=[Button.inline("🚪 ENTER THE WORLD", b"enter_world")]
+        "🦇 𝑽𝒆𝒓𝒔𝒊𝒐𝒏: 𝟐.𝟎.𝟎\n"
+        "📋 𝑨𝒗𝒂𝒊𝒍𝒂𝒃𝒍𝒆 𝒄𝒐𝒎𝒎𝒂𝒏𝒅𝒔:\n\n"
+        "🔍 𝑪𝒍𝒊𝒄𝒌 𝒃𝒆𝒍𝒐𝒘 𝒕𝒐 𝒆𝒙𝒑𝒍𝒐𝒓𝒆 𝒕𝒉𝒆 𝒄𝒐𝒎𝒎𝒂𝒏𝒅𝒔:",
+        buttons=[Button.inline("🚪 🦇 𝑬𝑵𝑻𝑬𝑹 𝑻𝑯𝑬 𝑾𝑶𝑹𝑳𝑫 🦇", b"enter_world")]
     )
 
 # Help command for /cmds
@@ -1188,13 +1174,13 @@ async def cmds_help(event):
         return
 
     await event.respond(
-        "🧰 Version: 1.0.0 \n"
-        "📋 Available commands:\n\n"
-        "🔍 Click below to explore the commands:",
-        buttons=[Button.inline("🚪 ENTER THE WORLD", b"enter_world")]
+        "𝑽𝒆𝒓𝒔𝒊𝒐𝒏: 𝟐.𝟎.𝟎\n"
+        "𝑨𝒗𝒂𝒊𝒍𝒂𝒃𝒍𝒆 𝒄𝒐𝒎𝒎𝒂𝒏𝒅𝒔:\n\n"
+        "𝑪𝒍𝒊𝒄𝒌 𝒃𝒆𝒍𝒐𝒘 𝒕𝒐 𝒆𝒙𝒑𝒍𝒐𝒓𝒆 𝒕𝒉𝒆 𝒄𝒐𝒎𝒎𝒂𝒏𝒅𝒔:",
+        buttons=[Button.inline("🚪 🦇 𝑬𝑵𝑻𝑬𝑹 𝑻𝑯𝑬 𝑾𝑶𝑹𝑳𝑫 🦇", b"enter_world")]
     )
 
-# Callback handler for the "Enter the World" button
+# Callback handler for the "🦇 𝑬𝑵𝑻𝑬𝑹 𝑻𝑯𝑬 𝑾𝑶𝑹𝑳𝑫 🦇" button
 @client.on(events.CallbackQuery(data=b"enter_world"))
 async def enter_world(event):
     if not await check_group_auth(event):
@@ -1207,13 +1193,13 @@ async def enter_world(event):
         return
 
     await event.edit(
-        "🏠 Main Menu\n"
-        "🧰 Version: 1.0.0\n\n"
-        "📋 Choose a section:",
+        "𝑴𝒂𝒊𝒏 𝑴𝒆𝒏𝒖 \n"
+        "𝑽𝒆𝒓𝒔𝒊𝒐𝒏: 𝟐.𝟎.𝟎\n\n"
+        "𝐂𝐡𝐨𝐨𝐬𝐞 𝐚 𝐬𝐞𝐜𝐭𝐢𝐨𝐧:",
         buttons=[
-            [Button.inline("🔰 Basic", b"basic_commands"), Button.inline("🔒 Admins", b"admin_commands")],
-            [Button.inline("🧰 Tools", b"tools_commands"), Button.inline("🔍 Gates", b"gates_commands")],
-            [Button.inline("❌ Exit", b"exit_command")]
+            [Button.inline("🍀 𝑩𝒂𝒔𝒊𝒄", b"basic_commands"), Button.inline("🔒 Admins", b"admin_commands")],
+            [Button.inline("🛠️ 𝙏𝙤𝙤𝙡𝙨 ", b"tools_commands"), Button.inline("🔍 Gates", b"gates_commands")],
+            [Button.inline("❌ 𝑬𝒙𝒊𝒕 ", b"exit_command")]
         ]
     )
 
@@ -1231,10 +1217,10 @@ async def basic_commands(event):
 
     buttons = [
         [Button.inline("🏠 /start", b"start_command"), Button.inline("📝 /register", b"register_command")],
-        [Button.inline("🔙 Back to Main Menu", b"enter_world")]
+        [Button.inline("🔙 Back to 𝑴𝒂𝒊𝒏 𝑴𝒆𝒏𝒖 ", b"enter_world")]
     ]
     await event.edit(
-        "🔰 Basic Commands\n"
+        "🍀 𝑩𝒂𝒔𝒊𝒄 Commands\n"
         "Here are the basic commands you can use:",
         buttons=buttons
     )
@@ -1282,14 +1268,14 @@ async def admin_commands(event):
         "🔒 Admin Commands\n"
         "Here are the admin commands:",
         buttons=[
-            [Button.inline("⬆️ /upgrade", b"upgrade_command"), Button.inline("⛔ /banbin", b"banbin_command")],
-            [Button.inline("✅ /unbanbin", b"unbanbin_command"), Button.inline("🎁 /gc", b"generate_code_command")],
-            [Button.inline("🚫 /ban", b"ban_command"), Button.inline("✅ /unban", b"unban_command")],
-            [Button.inline("⬇️ /looser", b"loser_command"), Button.inline("🔐 /gauth", b"gauth_command")],
-            [Button.inline("❌ /dauth", b"dauth_command"), Button.inline("📢 /sendall", b"sendall_command")],
-            [Button.inline("📋 /notused", b"notused_command"), Button.inline("🔒 /no", b"no_command")],
-            [Button.inline("⚙️ /off", b"off_command"), Button.inline("⚙️ /on", b"on_command")],
-            [Button.inline("🔙 Back to Main Menu", b"enter_world")]
+            [Button.inline("⬆️ /𝒖𝒑𝒈𝒓𝒂𝒅𝒆", b"upgrade_command"), Button.inline("⛔ /𝒃𝒂𝒏𝒃𝒊𝒏", b"banbin_command")],
+            [Button.inline("✅ /𝒖𝒏𝒃𝒂𝒏𝒃𝒊𝒏", b"unbanbin_command"), Button.inline("🎁 /𝒈𝒄", b"generate_code_command")],
+            [Button.inline("🚫 /𝒃𝒂𝒏", b"ban_command"), Button.inline("✅ /𝒖𝒏𝒃𝒂𝒏", b"unban_command")],
+            [Button.inline("⬇️ /𝒍𝒐𝒐𝒔𝒆𝒓", b"loser_command"), Button.inline("🔐 /𝒈𝒂𝒖𝒕𝒉", b"gauth_command")],
+            [Button.inline("❌ /𝒅𝒂𝒖𝒕𝒉", b"dauth_command"), Button.inline("📢 /𝒔𝒆𝒏𝒅𝒂𝒍𝒍", b"sendall_command")],
+            [Button.inline("📋 /𝒏𝒐𝒕𝒖𝒔𝒆𝒅", b"notused_command"), Button.inline("🔒 /𝒏𝒐", b"no_command")],
+            [Button.inline("⚙️ /𝒐𝒇𝒇", b"off_command"), Button.inline("⚙️ /𝒐𝒏", b"on_command")],
+            [Button.inline("🔙 𝑩𝒂𝒄𝒌 𝒕𝒐 𝑴𝒂𝒊𝒏 𝑴𝒆𝒏𝒖 ", b"enter_world")]
         ]
     )
 
@@ -1372,7 +1358,6 @@ async def upgrade_help(event):
 
     await event.respond(
         "⬆️ **How to Upgrade a User**\n\n"
-        "Use the following format:\n\n"
         "`/upgrade <username or ID>`\n\n"
         "📋 **Example:**\n"
         "`/upgrade @username`\n"
@@ -1452,7 +1437,6 @@ async def banbin_help(event):
 
     await event.respond(
         "⛔ **How to Ban a BIN**\n\n"
-        "Use the following format:\n\n"
         "`/banbin <6-digit BIN>` or `/banbin <ccnum|mon|year|cvv>`\n\n"
         "📋 **Examples:**\n"
         "`/banbin 123456`\n"
@@ -1534,7 +1518,6 @@ async def unbanbin_help(event):
 
     await event.respond(
         "✅ **How to Unban a BIN**\n\n"
-        "Use the following format:\n\n"
         "`/unbanbin <6-digit BIN>` or `/unbanbin <ccnum|mon|year|cvv>`\n\n"
         "📋 **Examples:**\n"
         "`/unbanbin 123456`\n"
@@ -1620,7 +1603,6 @@ async def ban_help(event):
 
     await event.respond(
         "⛔ **How to Ban a User**\n\n"
-        "Use the following format:\n\n"
         "`/ban <username or ID>`\n\n"
         "📋 **Examples:**\n"
         "`/ban @username`\n"
@@ -1708,7 +1690,6 @@ async def unban_help(event):
 
     await event.respond(
         "✅ **How to Unban a User**\n\n"
-        "Use the following format:\n\n"
         "`/unban <username or ID>`\n\n"
         "📋 **Examples:**\n"
         "`/unban @username`\n"
@@ -1796,7 +1777,6 @@ async def loser_help(event):
 
     await event.respond(
         "⬇️ **How to Downgrade a User**\n\n"
-        "Use the following format:\n\n"
         "`/looser <username or ID>`\n\n"
         "📋 **Examples:**\n"
         "`/looser @username`\n"
@@ -1822,7 +1802,7 @@ async def gates_commands(event):
         "Choose a gateway type:",
         buttons=[
             [Button.inline("💳 Auth Gates", b"auth_gates_menu"), Button.inline("🔄 Mass Checkers", b"mass_gates_menu")],
-            [Button.inline("💰 Charge Gates", b"charge_gates_menu"), Button.inline("🔙 Back to Main Menu", b"enter_world")]
+            [Button.inline("💰 Charge Gates", b"charge_gates_menu"), Button.inline("🔙 Back to 𝑴𝒂𝒊𝒏 𝑴𝒆𝒏𝒖 ", b"enter_world")]
         ]
     )
 
@@ -2190,7 +2170,6 @@ async def no_help(event):
         "Restrict a user from using specific commands:\n\n"
         "`/no <command> <user_id>`\n\n"
         "📋 **Examples:**\n"
-        "`/no /gc 123456789` - Restrict user from using /gc\n"
         "`/no /gate 987654321` - Restrict user from using /gate\n\n"
         "✅ The user will receive a restriction message when trying to use the command."
     )
@@ -2218,7 +2197,6 @@ async def no_command_callback(event):
         "Restrict a user from using specific commands:\n\n"
         "`/no <command> <user_id>`\n\n"
         "📋 **Examples:**\n"
-        "`/no /gc 123456789` - Restrict user from using /gc\n"
         "`/no /gate 987654321` - Restrict user from using /gate\n\n"
         "✅ The user will receive a restriction message when trying to use the command."
     )
@@ -2266,7 +2244,6 @@ async def off_help(event):
         "Disable a command globally for all users:\n\n"
         "`/off <command>`\n\n"
         "📋 **Examples:**\n"
-        "`/off /gate` - Disable /gate command for everyone\n"
         "`/off /sc` - Disable /sc command for everyone\n\n"
         "✅ The command will be disabled until re-enabled with /on."
     )
@@ -2294,7 +2271,6 @@ async def off_command_callback(event):
         "Disable a command globally for all users:\n\n"
         "`/off <command>`\n\n"
         "📋 **Examples:**\n"
-        "`/off /gate` - Disable /gate command for everyone\n"
         "`/off /sc` - Disable /sc command for everyone\n\n"
         "✅ The command will be disabled until re-enabled with /on."
     )
@@ -2342,7 +2318,6 @@ async def on_help(event):
         "Enable a previously disabled command globally:\n\n"
         "`/on <command>`\n\n"
         "📋 **Examples:**\n"
-        "`/on /gate` - Enable /gate command for everyone\n"
         "`/on /sc` - Enable /sc command for everyone\n\n"
         "✅ The command will be re-enabled for all users."
     )
@@ -2370,7 +2345,6 @@ async def on_command_callback(event):
         "Enable a previously disabled command globally:\n\n"
         "`/on <command>`\n\n"
         "📋 **Examples:**\n"
-        "`/on /gate` - Enable /gate command for everyone\n"
         "`/on /sc` - Enable /sc command for everyone\n\n"
         "✅ The command will be re-enabled for all users."
     )

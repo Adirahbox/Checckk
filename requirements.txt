@@ -1,0 +1,17 @@
+telethon
+requests
+aiohttp
+cloudscraper
+beautifulsoup4
+lxml
+stripe
+faker
+python-dateutil
+urllib3
+pySocks
+cryptography
+pillow
+pyaes
+rsa
+async-timeout
+httpx

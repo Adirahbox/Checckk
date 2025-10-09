@@ -2347,8 +2347,31 @@ async def on_command_callback(event):
         "✅ The command will be re-enabled for all users."
     )
 
-# Start the bot with error handling
-print("🤖 Bot Started...")
+# Add this at the end of main.py (before the final client.run_until_disconnected())
+
+from flask import Flask
+import threading
+
+# Create a simple Flask app for health checks
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "🤖 Telegram Bot is Running"
+
+@app.route('/health')
+def health():
+    return "OK", 200
+
+def run_flask_app():
+    port = int(os.getenv('PORT', 10000))
+    app.run(host='0.0.0.0', port=port, debug=False)
+
+# Start Flask in a separate thread
+flask_thread = threading.Thread(target=run_flask_app, daemon=True)
+flask_thread.start()
+
+print("🤖 Bot Started with Health Check Server...")
 try:
     client.run_until_disconnected()
 except Exception as e:

